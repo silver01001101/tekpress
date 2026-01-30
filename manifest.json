@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "Tekpress",
+  "version": "1.0.0",
+  "description": "Print any Pinterest image with on-demand printing services",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "identity"
+  ],
+  "host_permissions": [
+    "https://*.pinterest.com/*",
+    "https://*.pinterest.co.uk/*",
+    "https://jqifbamszdvbfhxkyjij.supabase.co/*",
+    "https://api.prodigi.com/*"
+  ],
+  "action": {
+    "default_popup": "public/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.pinterest.com/*",
+        "https://*.pinterest.co.uk/*"
+      ],
+      "js": ["src/content.js"],
+      "css": ["src/content.css"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*"],
+      "matches": ["https://*.pinterest.com/*", "https://*.pinterest.co.uk/*"]
+    }
+  ]
+}
