@@ -37,11 +37,16 @@
 
     const imageUrl = e.currentTarget.dataset.imageUrl;
 
-    // Check if user is authenticated
-    await checkAuth();
-    if (!isAuthenticated) {
-      showModal('login', imageUrl);
-      return;
+    // Check if dev mode bypass is enabled
+    const devBypass = localStorage.getItem('tekpress_dev_bypass') === 'true';
+
+    if (!devBypass) {
+      // Check if user is authenticated
+      await checkAuth();
+      if (!isAuthenticated) {
+        showModal('login', imageUrl);
+        return;
+      }
     }
 
     showModal('print', imageUrl);
@@ -83,6 +88,8 @@
             <button type="submit" class="tekpress-submit-btn">Sign In</button>
           </form>
           <p class="tekpress-signup-link">Don't have an account? <a href="#" class="tekpress-link">Sign up</a></p>
+          <div class="tekpress-dev-divider"></div>
+          <button class="tekpress-dev-btn">Skip Login (Dev Mode)</button>
         </div>
       `;
 
@@ -117,6 +124,13 @@
         signupLink?.addEventListener('click', (e) => {
           e.preventDefault();
           showModal('signup', imageUrl);
+        });
+
+        const devBtn = modal.querySelector('.tekpress-dev-btn');
+        devBtn?.addEventListener('click', () => {
+          localStorage.setItem('tekpress_dev_bypass', 'true');
+          overlay.remove();
+          showModal('print', imageUrl);
         });
       }, 0);
     } else if (type === 'signup') {
@@ -242,11 +256,34 @@
 
   // Add print buttons to Pinterest pins
   function addPrintButtons() {
-    // Pinterest pin images
-    const pins = document.querySelectorAll('[data-test-id="pin"] img, [data-test-id="pinWrapper"] img, .PinImage img, div[data-test-id="pin-visual-wrapper"] img');
+    // Try multiple selector strategies for Pinterest's varying DOM
+    const selectors = [
+      '[data-test-id="pin"] img',
+      '[data-test-id="pinWrapper"] img',
+      '[data-test-id="pin-visual-wrapper"] img',
+      '[data-test-id="pinRep"] img',
+      '.PinImage img',
+      '.GrowthUnauthPinImage img',
+      'div[data-grid-item] img',
+      'a[href*="/pin/"] img',
+      'img[src*="pinimg.com"]'
+    ];
 
-    pins.forEach(img => {
-      const container = img.closest('[data-test-id="pin"], [data-test-id="pinWrapper"], .PinImage, div[data-test-id="pin-visual-wrapper"]');
+    const allImages = document.querySelectorAll(selectors.join(', '));
+    console.log('[Tekpress] Found images:', allImages.length);
+
+    allImages.forEach(img => {
+      // Skip tiny images (icons, avatars)
+      if (img.width < 100 || img.height < 100) return;
+
+      // Find a suitable container
+      let container = img.closest('[data-test-id="pin"], [data-test-id="pinWrapper"], [data-test-id="pin-visual-wrapper"], [data-test-id="pinRep"], .PinImage, [data-grid-item]');
+
+      // Fallback: use parent elements
+      if (!container) {
+        container = img.parentElement?.parentElement || img.parentElement;
+      }
+
       if (!container || container.querySelector('.tekpress-print-btn')) return;
 
       // Get the highest resolution image URL
@@ -260,6 +297,7 @@
       container.style.position = 'relative';
       const btn = createPrintButton(imageUrl);
       container.appendChild(btn);
+      console.log('[Tekpress] Added button to:', imageUrl.substring(0, 50));
     });
   }
 
@@ -278,8 +316,15 @@
 
   // Initialize
   async function init() {
+    console.log('[Tekpress] Extension loaded on Pinterest');
     await checkAuth();
+
+    // Initial scan
     addPrintButtons();
+
+    // Retry after a delay (Pinterest loads content dynamically)
+    setTimeout(addPrintButtons, 1000);
+    setTimeout(addPrintButtons, 3000);
 
     // Watch for new pins loaded via infinite scroll
     const observer = new MutationObserver(debounce(addPrintButtons, 500));
