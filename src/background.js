@@ -21,16 +21,26 @@ async function handleMessage(request, sender) {
     case 'signIn':
       try {
         const result = await supabase.signIn(request.email, request.password);
+        console.log('[Tekpress] Sign in result:', result);
+        if (result.error || result.error_description || result.msg) {
+          return { success: false, error: result.error_description || result.error || result.msg };
+        }
         return { success: true, data: result };
       } catch (error) {
+        console.error('[Tekpress] Sign in error:', error);
         return { success: false, error: error.message };
       }
 
     case 'signUp':
       try {
         const result = await supabase.signUp(request.email, request.password);
+        console.log('[Tekpress] Sign up result:', result);
+        if (result.error || result.error_description || result.msg) {
+          return { success: false, error: result.error_description || result.error || result.msg };
+        }
         return { success: true, data: result };
       } catch (error) {
+        console.error('[Tekpress] Sign up error:', error);
         return { success: false, error: error.message };
       }
 

@@ -14,12 +14,13 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  opacity: 1;
-  transform: translateY(0);
+  opacity: 0;
+  transform: translateY(10px);
   transition: all 0.2s ease;
   z-index: 100;
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  pointer-events: none;
 }
 
 .tekpress-print-btn:hover {
@@ -28,12 +29,15 @@
   box-shadow: 0 6px 16px rgba(99, 102, 241, 0.5);
 }
 
+/* Show button on hover - using general parent selector */
+*:hover > .tekpress-print-btn,
 [data-test-id="pin"]:hover .tekpress-print-btn,
 [data-test-id="pinWrapper"]:hover .tekpress-print-btn,
 .PinImage:hover .tekpress-print-btn,
 div[data-test-id="pin-visual-wrapper"]:hover .tekpress-print-btn {
   opacity: 1;
   transform: translateY(0);
+  pointer-events: auto;
 }
 
 /* Modal Overlay */
@@ -238,6 +242,17 @@ div[data-test-id="pin-visual-wrapper"]:hover .tekpress-print-btn {
   background: #fde68a;
 }
 
+/* Error Message */
+.tekpress-error {
+  padding: 10px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  color: #dc2626;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
 /* Print Options */
 .tekpress-preview {
   margin-bottom: 20px;
@@ -303,4 +318,95 @@ div[data-test-id="pin-visual-wrapper"]:hover .tekpress-print-btn {
 .tekpress-success p {
   margin: 0;
   color: #6b7280;
+}
+
+.tekpress-success-detail {
+  margin-top: 12px !important;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.tekpress-done-btn {
+  margin-top: 20px !important;
+}
+
+/* Checkout Styles */
+.tekpress-checkout-summary {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 20px;
+}
+
+.tekpress-checkout-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tekpress-checkout-thumb {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.tekpress-checkout-details {
+  flex: 1;
+}
+
+.tekpress-checkout-product {
+  font-weight: 600;
+  font-size: 14px;
+  color: #111827;
+}
+
+.tekpress-checkout-price {
+  font-size: 16px;
+  font-weight: 700;
+  color: #6366f1;
+  margin-top: 4px;
+}
+
+.tekpress-shipping-form h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #374151;
+}
+
+.tekpress-input-row {
+  display: flex;
+  gap: 12px;
+}
+
+.tekpress-input-row .tekpress-input {
+  flex: 1;
+}
+
+.tekpress-order-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 16px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.tekpress-total-price {
+  font-size: 20px;
+  color: #6366f1;
+}
+
+.tekpress-place-order-btn {
+  margin-top: 8px;
+}
+
+.tekpress-dev-note {
+  text-align: center;
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 12px !important;
 }

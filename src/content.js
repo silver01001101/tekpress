@@ -85,6 +85,7 @@
           <form class="tekpress-login-form">
             <input type="email" placeholder="Email" class="tekpress-input" required />
             <input type="password" placeholder="Password" class="tekpress-input" required />
+            <div class="tekpress-error" style="display:none;"></div>
             <button type="submit" class="tekpress-submit-btn">Sign In</button>
           </form>
           <p class="tekpress-signup-link">Don't have an account? <a href="#" class="tekpress-link">Sign up</a></p>
@@ -101,22 +102,39 @@
           if (response.success) {
             overlay.remove();
             showModal('print', imageUrl);
+          } else {
+            const errorDiv = modal.querySelector('.tekpress-error');
+            errorDiv.textContent = response.error || 'Google sign in failed';
+            errorDiv.style.display = 'block';
           }
         });
 
         const form = modal.querySelector('.tekpress-login-form');
         form?.addEventListener('submit', async (e) => {
           e.preventDefault();
+          const errorDiv = modal.querySelector('.tekpress-error');
+          const submitBtn = form.querySelector('button[type="submit"]');
           const email = form.querySelector('input[type="email"]').value;
           const password = form.querySelector('input[type="password"]').value;
+
+          submitBtn.textContent = 'Signing in...';
+          submitBtn.disabled = true;
+          errorDiv.style.display = 'none';
+
           const response = await chrome.runtime.sendMessage({
             action: 'signIn',
             email,
             password
           });
-          if (response.success) {
+
+          if (response.success && response.data?.access_token) {
             overlay.remove();
             showModal('print', imageUrl);
+          } else {
+            errorDiv.textContent = response.error || 'Sign in failed';
+            errorDiv.style.display = 'block';
+            submitBtn.textContent = 'Sign In';
+            submitBtn.disabled = false;
           }
         });
 
@@ -142,8 +160,9 @@
         <div class="tekpress-modal-content">
           <form class="tekpress-signup-form">
             <input type="email" placeholder="Email" class="tekpress-input" required />
-            <input type="password" placeholder="Password" class="tekpress-input" required />
+            <input type="password" placeholder="Password (min 6 chars)" class="tekpress-input" required />
             <input type="password" placeholder="Confirm Password" class="tekpress-input" required />
+            <div class="tekpress-error" style="display:none;"></div>
             <button type="submit" class="tekpress-submit-btn">Create Account</button>
           </form>
           <p class="tekpress-signup-link">Already have an account? <a href="#" class="tekpress-link">Sign in</a></p>
@@ -154,24 +173,56 @@
         const form = modal.querySelector('.tekpress-signup-form');
         form?.addEventListener('submit', async (e) => {
           e.preventDefault();
+          const errorDiv = modal.querySelector('.tekpress-error');
+          const submitBtn = form.querySelector('button[type="submit"]');
           const inputs = form.querySelectorAll('input');
           const email = inputs[0].value;
           const password = inputs[1].value;
           const confirmPassword = inputs[2].value;
 
+          errorDiv.style.display = 'none';
+
           if (password !== confirmPassword) {
-            alert('Passwords do not match');
+            errorDiv.textContent = 'Passwords do not match';
+            errorDiv.style.display = 'block';
             return;
           }
+
+          if (password.length < 6) {
+            errorDiv.textContent = 'Password must be at least 6 characters';
+            errorDiv.style.display = 'block';
+            return;
+          }
+
+          submitBtn.textContent = 'Creating account...';
+          submitBtn.disabled = true;
 
           const response = await chrome.runtime.sendMessage({
             action: 'signUp',
             email,
             password
           });
-          if (response.success) {
-            overlay.remove();
-            showModal('print', imageUrl);
+
+          console.log('[Tekpress] Signup response:', response);
+
+          if (response.success && (response.data?.access_token || response.data?.id)) {
+            // Some Supabase configs require email confirmation
+            if (response.data?.id && !response.data?.access_token) {
+              errorDiv.textContent = 'Check your email to confirm your account!';
+              errorDiv.style.display = 'block';
+              errorDiv.style.background = '#d1fae5';
+              errorDiv.style.borderColor = '#10b981';
+              errorDiv.style.color = '#065f46';
+              submitBtn.textContent = 'Email Sent';
+            } else {
+              overlay.remove();
+              showModal('print', imageUrl);
+            }
+          } else {
+            errorDiv.textContent = response.error || 'Sign up failed';
+            errorDiv.style.display = 'block';
+            submitBtn.textContent = 'Create Account';
+            submitBtn.disabled = false;
           }
         });
 
@@ -213,29 +264,109 @@
 
       setTimeout(() => {
         const orderBtn = modal.querySelector('.tekpress-order-btn');
-        orderBtn?.addEventListener('click', async () => {
+        orderBtn?.addEventListener('click', () => {
           const product = modal.querySelector('#tekpress-product').value;
           const size = modal.querySelector('#tekpress-size').value;
+          showModal('checkout', { imageUrl, product, size });
+        });
+      }, 0);
+    } else if (type === 'checkout') {
+      const { imageUrl: imgUrl, product, size } = imageUrl; // imageUrl is actually the data object here
+      const prices = { 'poster': 15, 'canvas': 35, 'framed': 45, 'metal': 55 };
+      const sizeMultiplier = { '8x10': 1, '11x14': 1.3, '16x20': 1.6, '24x36': 2.2 };
+      const basePrice = prices[product] || 15;
+      const multiplier = sizeMultiplier[size] || 1;
+      const price = (basePrice * multiplier).toFixed(2);
 
-          // Save order to database
-          await chrome.runtime.sendMessage({
-            action: 'savePrintOrder',
-            userId: currentUser?.id,
-            imageUrl: imageUrl,
-            productType: `${product}-${size}`
-          });
+      modal.innerHTML = `
+        <div class="tekpress-modal-header">
+          <h2>Checkout</h2>
+          <button class="tekpress-close-btn">&times;</button>
+        </div>
+        <div class="tekpress-modal-content">
+          <div class="tekpress-checkout-summary">
+            <div class="tekpress-checkout-item">
+              <img src="${imgUrl}" alt="Preview" class="tekpress-checkout-thumb" />
+              <div class="tekpress-checkout-details">
+                <div class="tekpress-checkout-product">${product.charAt(0).toUpperCase() + product.slice(1)} - ${size}</div>
+                <div class="tekpress-checkout-price">$${price}</div>
+              </div>
+            </div>
+          </div>
+          <div class="tekpress-shipping-form">
+            <h3>Shipping Address</h3>
+            <input type="text" placeholder="Full Name" class="tekpress-input" id="tekpress-name" required />
+            <input type="text" placeholder="Address Line 1" class="tekpress-input" id="tekpress-address1" required />
+            <input type="text" placeholder="Address Line 2 (optional)" class="tekpress-input" id="tekpress-address2" />
+            <div class="tekpress-input-row">
+              <input type="text" placeholder="City" class="tekpress-input" id="tekpress-city" required />
+              <input type="text" placeholder="ZIP" class="tekpress-input" id="tekpress-zip" required />
+            </div>
+            <select class="tekpress-select" id="tekpress-country">
+              <option value="US">United States</option>
+              <option value="CA">Canada</option>
+              <option value="UK">United Kingdom</option>
+              <option value="AU">Australia</option>
+            </select>
+          </div>
+          <div class="tekpress-order-total">
+            <span>Total</span>
+            <span class="tekpress-total-price">$${price}</span>
+          </div>
+          <button class="tekpress-submit-btn tekpress-place-order-btn">Place Order</button>
+          <p class="tekpress-dev-note">(Dev Mode: No actual payment processed)</p>
+        </div>
+      `;
 
-          // Show confirmation
+      setTimeout(() => {
+        const placeOrderBtn = modal.querySelector('.tekpress-place-order-btn');
+        placeOrderBtn?.addEventListener('click', async () => {
+          const name = modal.querySelector('#tekpress-name').value;
+          const address1 = modal.querySelector('#tekpress-address1').value;
+          const city = modal.querySelector('#tekpress-city').value;
+          const zip = modal.querySelector('#tekpress-zip').value;
+
+          if (!name || !address1 || !city || !zip) {
+            alert('Please fill in all required fields');
+            return;
+          }
+
+          // Show loading
+          placeOrderBtn.textContent = 'Processing...';
+          placeOrderBtn.disabled = true;
+
+          // Simulate API call
+          await new Promise(resolve => setTimeout(resolve, 1500));
+
+          // Save order (will work even without Supabase connection in dev mode)
+          try {
+            await chrome.runtime.sendMessage({
+              action: 'savePrintOrder',
+              userId: currentUser?.id || 'dev-user',
+              imageUrl: imgUrl,
+              productType: `${product}-${size}`
+            });
+          } catch (e) {
+            console.log('[Tekpress] Order save skipped (dev mode):', e);
+          }
+
+          // Show success
           modal.querySelector('.tekpress-modal-content').innerHTML = `
             <div class="tekpress-success">
               <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
               </svg>
-              <h3>Order Saved!</h3>
-              <p>Your print order has been saved. Check your orders in the Tekpress extension popup.</p>
+              <h3>Order Placed!</h3>
+              <p>Order #TKP-${Date.now().toString(36).toUpperCase()}</p>
+              <p class="tekpress-success-detail">Your ${product} (${size}) is being prepared for printing and will ship to ${name} at ${address1}, ${city} ${zip}.</p>
+              <button class="tekpress-submit-btn tekpress-done-btn">Done</button>
             </div>
           `;
+
+          modal.querySelector('.tekpress-done-btn')?.addEventListener('click', () => {
+            overlay.remove();
+          });
         });
       }, 0);
     }
